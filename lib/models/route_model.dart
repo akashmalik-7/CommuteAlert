@@ -12,6 +12,11 @@ class RouteModel {
     required this.isExpress,
     required this.isPopular,
     this.totalStops = 0,
+    this.isActive = true,
+    this.departureTime,
+    this.arrivalTime,
+    this.fare,
+    this.stopIds = const [],
   });
 
   final String routeId;
@@ -24,59 +29,30 @@ class RouteModel {
   final bool isExpress;
   final bool isPopular;
   final int totalStops;
+  final bool isActive;
+  final String? departureTime;
+  final String? arrivalTime;
+  final double? fare;
+  final List<String> stopIds;
 
   String get transportLabel =>
       transportType == TransportType.bus ? 'Bus' : 'Van';
 
   Map<String, dynamic> toFirestore() => {
-        'routeId': routeId,
-        'routeName': routeName,
-        'transportType': transportLabel.toLowerCase(),
-        'startLocation': startLocation,
-        'destination': destination,
-        'totalStops': totalStops,
-        'estimatedDuration': estimatedDuration,
-        'isDirect': isDirect,
-        'isExpress': isExpress,
-        'isPopular': isPopular,
-      };
+    'routeId': routeId,
+    'routeName': routeName,
+    'transportType': transportLabel.toLowerCase(),
+    'startLocation': startLocation,
+    'destination': destination,
+    'totalStops': totalStops,
+    'estimatedDuration': estimatedDuration,
+    'isDirect': isDirect,
+    'isExpress': isExpress,
+    'isPopular': isPopular,
+    'isActive': isActive,
+    'departureTime': departureTime,
+    'arrivalTime': arrivalTime,
+    'fare': fare,
+    'stops': stopIds,
+  };
 }
-
-const demoRoutes = <RouteModel>[
-  RouteModel(
-    routeId: 'demo-01',
-    routeName: 'Route 01',
-    transportType: TransportType.bus,
-    startLocation: 'General Bus Stand',
-    destination: 'Bosan Road',
-    estimatedDuration: '35 min',
-    isDirect: true,
-    isExpress: false,
-    isPopular: true,
-    totalStops: 8,
-  ),
-  RouteModel(
-    routeId: 'demo-02',
-    routeName: 'Route 02',
-    transportType: TransportType.van,
-    startLocation: 'Cantt',
-    destination: 'Multan University',
-    estimatedDuration: '25 min',
-    isDirect: true,
-    isExpress: true,
-    isPopular: true,
-    totalStops: 5,
-  ),
-  RouteModel(
-    routeId: 'demo-03',
-    routeName: 'Route 03',
-    transportType: TransportType.bus,
-    startLocation: 'Chowk Kumharanwala',
-    destination: 'Gulgasht Colony',
-    estimatedDuration: '40 min',
-    isDirect: false,
-    isExpress: false,
-    isPopular: true,
-    totalStops: 10,
-  ),
-];

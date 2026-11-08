@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../models/route_model.dart';
+import '../services/firebase_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/route_card.dart';
 import '../widgets/search_field.dart';
 import '../widgets/section_heading.dart';
+import '../widgets/offline_banner.dart';
 import 'favorites_screen.dart';
 import 'profile_screen.dart';
 import 'search_screen.dart';
@@ -20,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  final _firebaseService = FirebaseService();
 
   Widget get _body {
     switch (_currentIndex) {
@@ -82,7 +85,26 @@ class _HomeScreenState extends State<HomeScreen> {
           action: () => setState(() => _currentIndex = 1),
         ),
         const SizedBox(height: 4),
-        ...demoRoutes.map((route) => RouteCard(route: route)),
+        StreamBuilder<List<RouteModel>>(
+          stream: _firebaseService.watchRoutes(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const Text('Popular routes are currently unavailable.');
+            }
+            final routes = snapshot.data!
+                .where((route) => route.isPopular)
+                .toList();
+            if (routes.isEmpty) {
+              return const Text('No popular routes have been published yet.');
+            }
+            return Column(
+              children: routes.map((route) => RouteCard(route: route)).toList(),
+            );
+          },
+        ),
       ],
     ),
   );
@@ -153,7 +175,12 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() => _currentIndex = index);
         },
       ),
-      body: _body,
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(child: _body),
+        ],
+      ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),

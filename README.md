@@ -296,6 +296,37 @@ replacing the Module 1 presentation and model layers.
 1. Confirm and document Firestore Security Rules.
 2. Add verified route, stop, and timetable documents.
 3. Replace demonstration lists with Firestore streams.
+
+## Module 2 implementation
+
+Module 2 now reads active routes from the `routes` collection, route stops from
+`stops`, and schedules from `timetables`. Search filters are applied
+case-insensitively to Firestore route data; the app does not fall back to demo
+routes when Firestore is empty or unavailable.
+
+Expected fields include:
+
+- `routes`: `routeId`, `routeName`, `transportType`, `startLocation`,
+  `endLocation` (or `destination`), `departureTime`, `arrivalTime`, `fare`,
+  `stops`, `isActive`, `isDirect`, `isExpress`, `isPopular`.
+- `stops`: `stopId`, `routeId`, `stopName`, `stopOrder`, `latitude`,
+  `longitude`, `address`.
+- `timetables`: `timetableId`, `routeId`, `departureTime`, `arrivalTime`,
+  `operatingDays`, `scheduleStatus`.
+
+Cloud Firestore persistence is enabled during startup. The app displays a
+cached-data banner when Firestore reports that the current snapshot is from
+cache. Data that has never been fetched is not presented as offline data.
+
+Firebase Authentication is not configured in this project, so favorites use
+the local device's `shared_preferences` storage. They persist across restarts
+but are not synchronized between devices or users.
+
+Before testing with real data, create the three collections and configure
+Firestore Security Rules in the Firebase Console. Do not use public write
+access in production. A suitable authenticated-user policy should be selected
+once Firebase Authentication is added; the current client only requires
+read access to route data.
 4. Add authentication before storing user-specific favorites.
 5. Add tested alarm and notification services.
 6. Add widget and integration tests for the core navigation flow.

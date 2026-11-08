@@ -18,21 +18,28 @@ class FavoritesScreen extends StatelessWidget {
           return const EmptyState(
             icon: Icons.favorite_border_rounded,
             title: 'No saved routes yet',
-            message: 'Save a route from its details page to find it quickly here.',
+            message:
+                'Save a route from its details page to find it quickly here.',
           );
         }
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           children: favorites
-              .map((route) => RouteCard(
-                    route: route,
-                    onFavorite: () => FavoritesService.remove(route.routeId),
-                  ))
+              .map(
+                (route) => RouteCard(
+                  route: route,
+                  showFavorite: true,
+                  onFavorite: () => FavoritesService.remove(route.routeId),
+                ),
+              )
               .toList(),
         );
       },
     );
     if (!showNavigation) return content;
-    return Scaffold(appBar: AppBar(title: const Text('Favorites')), body: content);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Favorites')),
+      body: content,
+    );
   }
 }

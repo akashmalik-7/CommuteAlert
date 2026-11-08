@@ -1,17 +1,19 @@
 class StopModel {
   const StopModel({
     required this.stopId,
-    required this.routeId,
     required this.stopName,
-    required this.stopOrder,
+    this.routeId,
+    this.stopOrder = 0,
     this.latitude,
     this.longitude,
+    this.address,
   });
 
   final String stopId;
-  final String routeId;
+  final String? routeId;
   final String stopName;
   final int stopOrder;
   final double? latitude;
   final double? longitude;
+  final String? address;
 }

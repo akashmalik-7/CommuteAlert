@@ -5,6 +5,7 @@ class TimetableModel {
     required this.departureTime,
     required this.arrivalTime,
     required this.operatingDays,
+    this.scheduleStatus,
   });
 
   final String timetableId;
@@ -12,4 +13,5 @@ class TimetableModel {
   final String departureTime;
   final String arrivalTime;
   final List<String> operatingDays;
+  final String? scheduleStatus;
 }
