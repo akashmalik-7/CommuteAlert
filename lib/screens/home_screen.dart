@@ -12,6 +12,8 @@ import '../widgets/offline_banner.dart';
 import 'favorites_screen.dart';
 import 'profile_screen.dart';
 import 'search_screen.dart';
+import 'alarms_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -114,12 +116,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: destination == null
-            ? () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Alarm reminders will be available in a future module.',
-                  ),
-                ),
+            ? () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AlarmsScreen()),
               )
             : () => setState(() => _currentIndex = destination),
         child: Container(
@@ -164,7 +163,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
             icon: const Icon(Icons.notifications_none_rounded),
           ),
         ],

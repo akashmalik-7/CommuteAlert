@@ -4,9 +4,10 @@ CommuteAlert is a Flutter Android application for discovering local bus and van
 routes, reviewing timetables, and saving favorite journeys. It is being
 developed as an internship project in separate modules.
 
-This README documents the completed **Module 1** implementation. Module 1
-focuses on the Flutter application foundation, the reference UI, Firebase
-initialization, reusable components, and the initial Firestore data design.
+This README documents the completed **Module 1–3** implementation. Module 1
+provides the application foundation and reference UI, Module 2 adds live
+Firestore route data and favorites, and Module 3 adds timer-based journey
+alarms and location-based bus-stop alerts.
 
 ## Module 1 objectives
 
@@ -78,6 +79,78 @@ actions. Skip and Get Started open the home screen.
 - My Routes, Favorites, Settings, Help & Support, and Log Out UI entries.
 - Authentication is intentionally not implemented in this module.
 
+## Module 3: Alarms and advanced features
+
+### Journey timer alarms
+
+- Select a Firestore route and enter or confirm a destination.
+- Select a reminder time and repeat days from Monday through Sunday.
+- Save, edit, delete, enable, and disable alarms.
+- Schedule Android local notifications using
+  `flutter_local_notifications`.
+- Repeat alarms are scheduled weekly in the device's local timezone.
+- Alarms are stored locally with `shared_preferences` and restored when the
+  application starts.
+- Duplicate alarms are rejected with a user-facing message.
+
+The timer notification message is:
+
+> Your journey reminder is due. Get ready for your selected route.
+
+### Location bus-stop alerts
+
+- Select a route and stop from the existing Firestore `routes` and `stops`
+  collections.
+- Use the stop's stored `latitude` and `longitude`; no production coordinates
+  are hardcoded.
+- Select a distance threshold of 100 m, 250 m, 500 m, or 1,000 m.
+- Request location permission and check that device location services are
+  enabled.
+- Calculate distance with `geolocator`.
+- Trigger one notification when the user enters the selected threshold.
+- Prevent repeated notifications during the same monitoring session.
+- Stop monitoring by disabling or removing the alert.
+
+The location notification message is:
+
+> You are approaching your selected bus stop.
+
+Location monitoring is intentionally foreground-oriented. Android may pause
+location updates while the app is backgrounded or force-stopped because of
+battery and background-execution restrictions. The app does not claim
+guaranteed background location tracking.
+
+### Alarm management and notifications
+
+The **My Alarms** screen displays timer and location alarms with route, stop,
+time, repeat days, threshold, status, edit, delete, and enable/disable
+controls. The notification affordance on the home screen opens the
+notifications screen.
+
+Notification setup includes:
+
+- The `commute_alerts` Android notification channel.
+- Runtime notification permission requests on supported Android versions.
+- Device timezone initialization for scheduled notifications.
+- Notification cancellation when an alarm is deleted or disabled.
+
+## Module 3 file organization
+
+```text
+lib/
+├── models/
+│   └── alarm_model.dart
+├── screens/
+│   ├── alarms_screen.dart
+│   ├── timer_alarm_screen.dart
+│   ├── location_alarm_screen.dart
+│   └── notifications_screen.dart
+└── services/
+    ├── alarm_service.dart
+    ├── location_service.dart
+    └── notification_service.dart
+```
+
 ## Design system
 
 The UI follows the supplied CommuteAlert design direction:
@@ -111,6 +184,7 @@ lib/
 ├── theme/
 │   └── app_theme.dart
 ├── models/
+│   ├── alarm_model.dart
 │   ├── route_model.dart
 │   ├── stop_model.dart
 │   └── timetable_model.dart
@@ -121,10 +195,17 @@ lib/
 │   ├── search_screen.dart
 │   ├── route_details_screen.dart
 │   ├── favorites_screen.dart
-│   └── profile_screen.dart
+│   ├── profile_screen.dart
+│   ├── alarms_screen.dart
+│   ├── timer_alarm_screen.dart
+│   ├── location_alarm_screen.dart
+│   └── notifications_screen.dart
 ├── services/
 │   ├── firebase_service.dart
-│   └── favorites_service.dart
+│   ├── favorites_service.dart
+│   ├── alarm_service.dart
+│   ├── location_service.dart
+│   └── notification_service.dart
 └── widgets/
     ├── custom_bottom_nav.dart
     ├── custom_drawer.dart
@@ -140,7 +221,8 @@ lib/
 - **Screens**: Page-level layout, state, and navigation.
 - **Widgets**: Reusable presentation components.
 - **Models**: Typed route, stop, and timetable structures.
-- **Services**: Favorites state and Firestore access abstraction.
+- **Services**: Firestore access, favorites, alarm persistence, notifications,
+  and location monitoring.
 - **Theme**: Shared colors, typography, shapes, and Material theme behavior.
 
 ## Firebase configuration
@@ -153,6 +235,11 @@ Configured dependencies:
 
 - `firebase_core`
 - `cloud_firestore`
+- `shared_preferences`
+- `flutter_local_notifications`
+- `geolocator`
+- `timezone`
+- `flutter_timezone`
 
 The Firebase project configuration was preserved and not regenerated. The app
 does not seed, update, or delete production Firestore data in Module 1. The
@@ -217,9 +304,12 @@ be treated as official bus or van timings.
 Real route information should be reviewed and approved before being uploaded
 to Firestore or shown as live commuter information.
 
+Location alarms require real stop coordinates in Firestore. Stops without both
+latitude and longitude cannot be used for location alerts.
+
 ## Dependencies
 
-The main dependencies used by Module 1 are:
+The main dependencies used by Modules 1–3 are:
 
 ```yaml
 flutter:
@@ -227,6 +317,11 @@ flutter:
 cupertino_icons: ^1.0.8
 firebase_core: ^5.1.0
 cloud_firestore: ^7.1.0
+shared_preferences: ^2.5.3
+flutter_local_notifications: ^19.4.2
+geolocator: ^14.0.2
+timezone: ^0.10.1
+flutter_timezone: ^5.0.0
 ```
 
 Development tooling includes `flutter_test` and `flutter_lints`.
@@ -235,10 +330,11 @@ Development tooling includes `flutter_test` and `flutter_lints`.
 
 ### Requirements
 
-- Flutter SDK compatible with Dart SDK `^3.12.2`.
+- Flutter 3.44.8 or a compatible SDK with Dart SDK `^3.12.2`.
 - Android SDK and an Android emulator or physical device.
 - A configured Firebase project for the existing application.
-- Android application identifier matching the existing project configuration.
+- Android application identifier `com.example.commutealert_app`.
+- Firestore route and stop data, including coordinates for location alerts.
 
 ### Commands
 
@@ -249,6 +345,10 @@ flutter pub get
 flutter analyze
 flutter run
 ```
+
+On the first run, grant notification and location permissions when prompted.
+For a location alert, ensure device GPS is enabled and select a stop that has
+valid Firestore coordinates.
 
 To build a debug Android APK:
 
@@ -262,40 +362,67 @@ The generated APK is written to:
 build/app/outputs/flutter-apk/app-debug.apk
 ```
 
+## Android permissions and configuration
+
+The Android manifest declares only the permissions required by Module 3:
+
+- `POST_NOTIFICATIONS`: allows timer and location alert notifications on
+  Android versions that require runtime notification permission.
+- `ACCESS_COARSE_LOCATION`: allows approximate location access.
+- `ACCESS_FINE_LOCATION`: allows accurate distance calculations near a stop.
+
+Background location permission is not requested because the implementation
+does not provide guaranteed background tracking. The Android app also enables
+core library desugaring required by `flutter_local_notifications`.
+
+If a permission is permanently denied, open the app's system settings and
+enable it manually. If GPS is disabled, enable Location Services before
+starting a location alert.
+
 ## Validation completed
 
-Module 1 was validated with:
+The implementation was validated with:
 
 - `flutter pub get` — successful.
+- `dart format .` — completed.
 - `flutter analyze` — no issues found.
 - `flutter build apk --debug` — successful.
+- `flutter test` — the existing starter counter smoke test fails because it
+  still expects the removed template counter UI; no Module 3 test failure was
+  reported.
+
+Timer creation, editing, deletion, repeat-day selection, notification
+permission prompts, foreground/background notification behavior, physical
+location testing, and app-restart testing require an Android emulator or
+device and were not executed in this environment.
 
 The Android build emitted a non-blocking warning about a dependency applying
 the Kotlin Gradle Plugin. It does not currently prevent the debug APK from
 building; dependency upgrades should be reviewed before a future Flutter
 toolchain migration.
 
-## Scope exclusions
+## Known limitations and scope
 
-The following features are intentionally not part of Module 1:
+The following limitations remain:
 
 - Real user authentication.
-- Live GPS or location tracking.
-- Background travel alarms.
-- Local notifications.
 - Offline synchronization.
 - Full Firestore CRUD administration.
 - Verified production timetable data.
 - Production Firestore rules and user-specific data permissions.
+- Guaranteed background location tracking while the app is force-stopped.
+- Exact alarm delivery guarantees under Android battery optimization.
 
-These features should be designed and implemented in later modules without
-replacing the Module 1 presentation and model layers.
+Timer notifications are delegated to Android's local notification scheduler.
+Delivery can still be affected by device power-saving policies, notification
+settings, or vendor-specific background restrictions.
 
 ## Suggested next steps
 
 1. Confirm and document Firestore Security Rules.
-2. Add verified route, stop, and timetable documents.
-3. Replace demonstration lists with Firestore streams.
+2. Add verified route, stop, and timetable documents with valid coordinates.
+3. Test alarm behavior on supported Android devices and battery settings.
+4. Add widget and integration tests for alarm workflows.
 
 ## Module 2 implementation
 
@@ -322,11 +449,24 @@ Firebase Authentication is not configured in this project, so favorites use
 the local device's `shared_preferences` storage. They persist across restarts
 but are not synchronized between devices or users.
 
+### Demo Firestore seed
+
+When the `routes` collection is empty, the app attempts a one-time demo seed
+for routes, their stops with sample coordinates, and timetable documents. On
+startup it also adds three sample popular routes when those route IDs are
+missing. The seed never overwrites existing route documents. The coordinates
+are sample data for development only and must be replaced with verified stop
+coordinates before real commuter use.
+
+Because this seed writes from the mobile client, Firestore Security Rules must
+temporarily allow the write or the seed will be rejected. The app logs the
+Firestore error and continues starting; it does not bypass Security Rules.
+For production, use an authenticated admin tool or Firebase Console instead of
+leaving public client writes enabled.
+
 Before testing with real data, create the three collections and configure
 Firestore Security Rules in the Firebase Console. Do not use public write
 access in production. A suitable authenticated-user policy should be selected
 once Firebase Authentication is added; the current client only requires
 read access to route data.
 4. Add authentication before storing user-specific favorites.
-5. Add tested alarm and notification services.
-6. Add widget and integration tests for the core navigation flow.

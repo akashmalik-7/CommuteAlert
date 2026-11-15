@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../screens/alarms_screen.dart';
 
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({this.onNavigate, super.key});
@@ -77,6 +78,14 @@ class CustomDrawer extends StatelessWidget {
               leading: const Icon(Icons.favorite_border),
               title: const Text('Favorites'),
               onTap: () => _navigate(context, 2),
+            ),
+            ListTile(
+              leading: const Icon(Icons.alarm_outlined),
+              title: const Text('My Alarms'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AlarmsScreen()),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.settings_outlined),
