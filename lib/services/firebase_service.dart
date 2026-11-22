@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/route_model.dart';
 import '../models/stop_model.dart';
@@ -10,6 +12,213 @@ class FirebaseService {
 
   final FirebaseFirestore _firestore;
 
+  Future<bool> isCurrentUserAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('Admin check: no authenticated user');
+      return false;
+    }
+    debugPrint('Admin check: authenticated UID=${user.uid}');
+    final roleDocument = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    debugPrint(
+      'Admin check: documentID=${roleDocument.id}, '
+      'exists=${roleDocument.exists}, '
+      'data=${roleDocument.data()}',
+    );
+    if (!roleDocument.exists) return false;
+    final role = roleDocument.data()?['role'];
+    debugPrint('Admin check: role=$role');
+    return role == 'admin';
+  }
+
+  Future<void> updateRoute(RouteModel route) async {
+    await requireAdmin();
+    final routeId = _normalizeRouteId(route.routeId);
+    if (routeId.isEmpty) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'A route ID is required.',
+      );
+    }
+    final data = route.toFirestore();
+    data['routeId'] = routeId;
+    await _firestore.collection('routes').doc(routeId).update(data);
+  }
+
+  Future<void> deleteRoute(String routeId) async {
+    await requireAdmin();
+    final normalizedId = _normalizeRouteId(routeId);
+    if (normalizedId.isEmpty) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'A route ID is required.',
+      );
+    }
+    await _firestore.collection('routes').doc(normalizedId).delete();
+  }
+
+  Future<void> requireAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    debugPrint('Add route authorization: currentUser=${user?.uid ?? 'null'}');
+    if (!await isCurrentUserAdmin()) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+        message: 'Administrator authorization is required.',
+      );
+    }
+  }
+
+  Future<void> addRoute(RouteModel route) async {
+    await requireAdmin();
+    final routeId = _normalizeRouteId(route.routeId);
+    if (routeId.isEmpty) {
+      final error = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message: 'A route ID is required.',
+      );
+      _logFirestoreException('addRoute', error);
+      throw error;
+    }
+
+    final routeName = route.routeName.trim();
+    final startLocation = route.startLocation.trim();
+    final destination = route.destination.trim();
+    final estimatedDuration = route.estimatedDuration.trim();
+    final departureTime = route.departureTime?.trim();
+    final arrivalTime = route.arrivalTime?.trim();
+
+    if (routeName.isEmpty ||
+        startLocation.isEmpty ||
+        destination.isEmpty ||
+        departureTime == null ||
+        departureTime.isEmpty ||
+        arrivalTime == null ||
+        arrivalTime.isEmpty ||
+        estimatedDuration.isEmpty ||
+        route.fare == null ||
+        route.fare! <= 0) {
+      final error = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'invalid-argument',
+        message:
+            'Route name, locations, times, duration, and a positive fare are required.',
+      );
+      _logFirestoreException('addRoute', error);
+      throw error;
+    }
+
+    try {
+      final documentReference = _firestore.collection('routes').doc(routeId);
+      debugPrint(
+        'Add route: documentID=${documentReference.id}, '
+        'routeIdField=$routeId',
+      );
+      final existingDocument = await documentReference.get();
+      if (existingDocument.exists) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'already-exists',
+          message: 'A route with this ID already exists.',
+        );
+      }
+
+      final matchingRoutes = await _firestore
+          .collection('routes')
+          .where('routeId', isEqualTo: routeId)
+          .limit(1)
+          .get();
+      if (matchingRoutes.docs.isNotEmpty) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'already-exists',
+          message: 'A route with this ID already exists.',
+        );
+      }
+
+      final data = <String, dynamic>{
+        'routeId': documentReference.id,
+        'routeName': routeName,
+        'transportType': route.transportLabel.toLowerCase(),
+        'startLocation': startLocation,
+        'destination': destination,
+        'estimatedDuration': estimatedDuration,
+        'totalStops': route.totalStops,
+        'isDirect': route.isDirect,
+        'isExpress': route.isExpress,
+        'isPopular': route.isPopular,
+        'isActive': route.isActive,
+        'fare': route.fare,
+        'departureTime': departureTime,
+        'arrivalTime': arrivalTime,
+        'stops': route.stopIds,
+        'isDemo': false,
+        'demoSource': null,
+      };
+      debugPrint('Add route payload=$data');
+
+      await _firestore.runTransaction((transaction) async {
+        final latestDocument = await transaction.get(documentReference);
+        if (latestDocument.exists) {
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'already-exists',
+            message: 'A route with this ID already exists.',
+          );
+        }
+        transaction.set(documentReference, data);
+      });
+
+      final written = await documentReference.get();
+      if (!written.exists) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'write-failed',
+          message:
+              'The route transaction completed but the document was not found.',
+        );
+      }
+      final writtenData = written.data();
+      if (writtenData?['routeId'] != documentReference.id) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'invalid-data',
+          message:
+              'The written routeId does not match document ID ${documentReference.id}.',
+        );
+      }
+      debugPrint(
+        'Add route successful: documentID=${written.id}, '
+        'routeId=${writtenData?['routeId']}',
+      );
+    } on FirebaseException catch (error) {
+      _logFirestoreException('addRoute', error);
+      rethrow;
+    }
+  }
+
+  String _normalizeRouteId(String routeId) {
+    final normalized = routeId
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return normalized.isEmpty ? '' : 'route_$normalized';
+  }
+
+  void _logFirestoreException(String operation, FirebaseException error) {
+    debugPrint(
+      'Firestore $operation failed [${error.code}]: '
+      '${error.message ?? 'No additional Firestore message'}',
+    );
+  }
+
   Future<bool> seedSampleDataIfEmpty() async {
     final existing = await _firestore.collection('routes').limit(1).get();
     if (existing.docs.isNotEmpty) return false;
@@ -17,6 +226,8 @@ class FirebaseService {
     final batch = _firestore.batch();
     final route = _firestore.collection('routes').doc('route_campus_central');
     batch.set(route, {
+      'isDemo': true,
+      'demoSource': 'seedSampleDataIfEmpty',
       'routeId': 'route_campus_central',
       'routeName': 'Campus - Central Market',
       'transportType': 'bus',
@@ -34,6 +245,8 @@ class FirebaseService {
 
     final van = _firestore.collection('routes').doc('route_station_airport');
     batch.set(van, {
+      'isDemo': true,
+      'demoSource': 'seedSampleDataIfEmpty',
       'routeId': 'route_station_airport',
       'routeName': 'City Station - Airport',
       'transportType': 'van',
@@ -156,6 +369,8 @@ class FirebaseService {
   Future<void> ensurePopularRoutes() async {
     const popularRoutes = <String, Map<String, Object>>{
       'route_north_terminal': {
+        'isDemo': true,
+        'demoSource': 'ensurePopularRoutes',
         'routeId': 'route_north_terminal',
         'routeName': 'North Terminal - Downtown',
         'transportType': 'bus',
@@ -171,6 +386,8 @@ class FirebaseService {
         'stops': <String>[],
       },
       'route_lakeside_university': {
+        'isDemo': true,
+        'demoSource': 'ensurePopularRoutes',
         'routeId': 'route_lakeside_university',
         'routeName': 'Lakeside - University',
         'transportType': 'van',
@@ -186,6 +403,8 @@ class FirebaseService {
         'stops': <String>[],
       },
       'route_old_town_station': {
+        'isDemo': true,
+        'demoSource': 'ensurePopularRoutes',
         'routeId': 'route_old_town_station',
         'routeName': 'Old Town - City Station',
         'transportType': 'bus',
@@ -214,20 +433,19 @@ class FirebaseService {
     if (pendingWrites > 0) await batch.commit();
   }
 
-  Stream<List<RouteModel>> watchRoutes({bool includeInactive = false}) {
-    return _firestore
+  Stream<List<RouteModel>> watchRoutes() {
+    // Rules only allow active-route reads for normal users. This constrained
+    // query is required for collection listeners; an unconstrained routes
+    // listener can be denied before inactive documents are filtered in Dart.
+    final Query<Map<String, dynamic>> routesQuery = _firestore
         .collection('routes')
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => _routeFromDocument(doc.id, doc.data()))
-              .where(
-                (route) =>
-                    route.routeId.isNotEmpty &&
-                    (includeInactive || route.isActive),
-              )
-              .toList(),
-        );
+        .where('isActive', isEqualTo: true);
+    return routesQuery.snapshots().map(
+      (snapshot) => snapshot.docs
+          .map((doc) => _routeFromDocument(doc.id, doc.data()))
+          .where((route) => route.routeId.isNotEmpty)
+          .toList(),
+    );
   }
 
   Future<RouteModel?> fetchRoute(String routeId) async {
@@ -264,6 +482,7 @@ class FirebaseService {
   Stream<bool> watchOfflineStatus() {
     return _firestore
         .collection('routes')
+        .where('isActive', isEqualTo: true)
         .snapshots(includeMetadataChanges: true)
         .map((snapshot) => snapshot.metadata.isFromCache);
   }

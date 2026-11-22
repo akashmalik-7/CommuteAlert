@@ -17,7 +17,18 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen> {
   final firebase = FirebaseService();
   RouteModel? route;
   StopModel? stop;
+  String? selectedRouteId;
+  String? selectedStopId;
   int threshold = 250;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedRouteId = widget.existing?.routeId;
+    selectedStopId = widget.existing?.stopId;
+    threshold = widget.existing?.thresholdMeters ?? threshold;
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -26,12 +37,38 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen> {
       ),
     ),
     body: StreamBuilder<List<RouteModel>>(
-      stream: firebase.watchRoutes(includeInactive: true),
+      stream: firebase.watchRoutes(),
       builder: (context, routeSnapshot) {
-        final routes = routeSnapshot.data ?? [];
-        route ??= routes
-            .where((item) => item.routeId == widget.existing?.routeId)
+        final routes = <RouteModel>[];
+        final routeIds = <String>{};
+        for (final item in routeSnapshot.data ?? const <RouteModel>[]) {
+          if (item.routeId.isEmpty || !routeIds.add(item.routeId)) continue;
+          routes.add(item);
+        }
+        if (routeSnapshot.hasError) {
+          return const Center(
+            child: Text('Routes unavailable. Check your connection.'),
+          );
+        }
+        if (routeSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (routes.isEmpty) {
+          return const Center(child: Text('No active routes are available.'));
+        }
+        if (selectedRouteId == null &&
+            widget.existing != null &&
+            routes.any((item) => item.routeId == widget.existing!.routeId)) {
+          selectedRouteId = widget.existing!.routeId;
+        }
+        route = routes
+            .where((item) => item.routeId == selectedRouteId)
             .firstOrNull;
+        if (route == null) {
+          selectedRouteId = null;
+          selectedStopId = null;
+          stop = null;
+        }
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
@@ -40,43 +77,75 @@ class _LocationAlarmScreenState extends State<LocationAlarmScreen> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 18),
-            DropdownButtonFormField<RouteModel>(
-              initialValue: route,
+            DropdownButtonFormField<String>(
+              key: ValueKey<String>('bus-route-${selectedRouteId ?? 'none'}'),
+              initialValue: selectedRouteId,
               decoration: const InputDecoration(labelText: 'Route'),
               items: routes
                   .map(
                     (item) => DropdownMenuItem(
-                      value: item,
+                      value: item.routeId,
                       child: Text(item.routeName),
                     ),
                   )
                   .toList(),
-              onChanged: (value) => setState(() {
-                route = value;
-                stop = null;
-              }),
+              onChanged: (value) {
+                setState(() {
+                  selectedRouteId = value;
+                  route = routes
+                      .where((item) => item.routeId == value)
+                      .firstOrNull;
+                  selectedStopId = null;
+                  stop = null;
+                });
+              },
             ),
             if (route != null) ...[
               const SizedBox(height: 14),
               StreamBuilder<List<StopModel>>(
                 stream: firebase.watchStops(route!.routeId),
                 builder: (context, snapshot) {
-                  final stops = snapshot.data ?? [];
-                  stop ??= stops
-                      .where((item) => item.stopId == widget.existing?.stopId)
+                  final stops = <StopModel>[];
+                  final stopIds = <String>{};
+                  for (final item in snapshot.data ?? const <StopModel>[]) {
+                    if (item.stopId.isEmpty || !stopIds.add(item.stopId)) {
+                      continue;
+                    }
+                    stops.add(item);
+                  }
+                  if (selectedStopId == null &&
+                      widget.existing != null &&
+                      stops.any(
+                        (item) => item.stopId == widget.existing!.stopId,
+                      )) {
+                    selectedStopId = widget.existing!.stopId;
+                  }
+                  stop = stops
+                      .where((item) => item.stopId == selectedStopId)
                       .firstOrNull;
-                  return DropdownButtonFormField<StopModel>(
-                    initialValue: stop,
+                  if (stop == null) selectedStopId = null;
+                  return DropdownButtonFormField<String>(
+                    key: ValueKey<String>(
+                      'bus-stop-${selectedStopId ?? 'none'}',
+                    ),
+                    initialValue: selectedStopId,
                     decoration: const InputDecoration(labelText: 'Bus stop'),
                     items: stops
                         .map(
                           (item) => DropdownMenuItem(
-                            value: item,
+                            value: item.stopId,
                             child: Text(item.stopName),
                           ),
                         )
                         .toList(),
-                    onChanged: (value) => setState(() => stop = value),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStopId = value;
+                        stop = stops
+                            .where((item) => item.stopId == value)
+                            .firstOrNull;
+                      });
+                    },
                   );
                 },
               ),

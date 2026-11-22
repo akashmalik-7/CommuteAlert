@@ -44,7 +44,11 @@ class _SplashScreenState extends State<SplashScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppTheme.primaryGreen, Color(0xFF064B38), Color(0xFF033C30)],
+            colors: [
+              AppTheme.primaryGreen,
+              Color(0xFF064B38),
+              Color(0xFF033C30),
+            ],
           ),
         ),
         child: SafeArea(
@@ -65,24 +69,44 @@ class _SplashScreenState extends State<SplashScreen> {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.directions_bus_rounded,
-                    size: 74, color: AppTheme.primaryGreen),
+                child: const Icon(
+                  Icons.directions_bus_rounded,
+                  size: 74,
+                  color: AppTheme.primaryGreen,
+                ),
               ),
               const SizedBox(height: 32),
-              const Text('CommuteAlert',
-                  style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold)),
+              const Text(
+                'CommuteAlert',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 12),
-              const Text('Local Bus & Van Timetable\nand Alarm App',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 16, height: 1.6)),
+              const Text(
+                'Local Bus & Van Timetable\nand Alarm App',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  height: 1.6,
+                ),
+              ),
               const SizedBox(height: 100),
-              const Text('Your Journey, Our Priority',
-                  style: TextStyle(color: Colors.white70, letterSpacing: 1)),
+              const Text(
+                'Your Journey, Our Priority',
+                style: TextStyle(color: Colors.white70, letterSpacing: 1),
+              ),
               const SizedBox(height: 24),
               const SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white70,
+                ),
               ),
             ],
           ),

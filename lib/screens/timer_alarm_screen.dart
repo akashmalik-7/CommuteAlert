@@ -15,6 +15,7 @@ class TimerAlarmScreen extends StatefulWidget {
 class _TimerAlarmScreenState extends State<TimerAlarmScreen> {
   final firebase = FirebaseService();
   RouteModel? route;
+  String? selectedRouteId;
   TimeOfDay? time;
   final days = <int>{};
   final destination = TextEditingController();
@@ -24,6 +25,7 @@ class _TimerAlarmScreenState extends State<TimerAlarmScreen> {
     super.initState();
     final alarm = widget.existing;
     if (alarm != null) {
+      selectedRouteId = alarm.routeId;
       time = TimeOfDay(hour: alarm.hour!, minute: alarm.minute!);
       days.addAll(alarm.repeatDays);
       destination.text = alarm.destination;
@@ -44,12 +46,28 @@ class _TimerAlarmScreenState extends State<TimerAlarmScreen> {
       ),
     ),
     body: StreamBuilder<List<RouteModel>>(
-      stream: firebase.watchRoutes(includeInactive: true),
+      stream: firebase.watchRoutes(),
       builder: (context, snapshot) {
-        final routes = snapshot.data ?? [];
-        route ??= routes
-            .where((item) => item.routeId == widget.existing?.routeId)
+        final routes = <RouteModel>[];
+        final routeIds = <String>{};
+        for (final item in snapshot.data ?? const <RouteModel>[]) {
+          if (item.routeId.isEmpty || !routeIds.add(item.routeId)) continue;
+          routes.add(item);
+        }
+        if (selectedRouteId == null &&
+            widget.existing != null &&
+            routes.any((item) => item.routeId == widget.existing!.routeId)) {
+          selectedRouteId = widget.existing!.routeId;
+        }
+        final selectedRoute = routes
+            .where((item) => item.routeId == selectedRouteId)
             .firstOrNull;
+        if (selectedRoute == null) {
+          selectedRouteId = null;
+          route = null;
+        } else {
+          route = selectedRoute;
+        }
         if (snapshot.hasError) {
           return _stateMessage(
             'Routes unavailable',
@@ -75,23 +93,29 @@ class _TimerAlarmScreenState extends State<TimerAlarmScreen> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 18),
-            DropdownButtonFormField<RouteModel>(
-              initialValue: routes.any((item) => item.routeId == route?.routeId)
-                  ? route
-                  : null,
+            DropdownButtonFormField<String>(
+              key: ValueKey<String>(
+                'journey-route-${selectedRouteId ?? 'none'}',
+              ),
+              initialValue: selectedRouteId,
               decoration: const InputDecoration(labelText: 'Route'),
               items: routes
                   .map(
                     (item) => DropdownMenuItem(
-                      value: item,
+                      value: item.routeId,
                       child: Text(item.routeName),
                     ),
                   )
                   .toList(),
-              onChanged: (value) => setState(() {
-                route = value;
-                destination.text = value?.destination ?? '';
-              }),
+              onChanged: (value) {
+                setState(() {
+                  selectedRouteId = value;
+                  route = routes
+                      .where((item) => item.routeId == value)
+                      .firstOrNull;
+                  destination.text = route?.destination ?? '';
+                });
+              },
             ),
             const SizedBox(height: 14),
             TextField(

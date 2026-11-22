@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'user'
+        && request.resource.data.email is string;
+      allow update, delete: if false;
+    }
+
+    match /routes/{routeId} {
+      allow read: if isAdmin() || resource.data.isActive == true;
+      allow create, update: if isAdmin()
+        && request.resource.data.routeId is string
+        && request.resource.data.routeId == routeId
+        && request.resource.data.routeName is string
+        && request.resource.data.routeName.size() > 0
+        && request.resource.data.startLocation is string
+        && request.resource.data.startLocation.size() > 0
+        && request.resource.data.destination is string
+        && request.resource.data.destination.size() > 0
+        && request.resource.data.departureTime is string
+        && request.resource.data.arrivalTime is string
+        && request.resource.data.estimatedDuration is string
+        && request.resource.data.fare is number
+        && request.resource.data.fare > 0
+        && request.resource.data.isActive is bool;
+      allow delete: if isAdmin();
+    }
+
+    match /stops/{stopId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /timetables/{timetableId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

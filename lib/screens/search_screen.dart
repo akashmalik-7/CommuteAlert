@@ -76,7 +76,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final content = StreamBuilder<List<RouteModel>>(
       stream: _firebaseService.watchRoutes(),
       builder: (context, snapshot) {
-        final results = snapshot.hasData && _searched
+        final results = snapshot.hasData
             ? _filterRoutes(snapshot.data!)
             : const <RouteModel>[];
         return SingleChildScrollView(
@@ -189,15 +189,11 @@ class _SearchScreenState extends State<SearchScreen> {
                   message:
                       'Check your connection and Firestore configuration, then try again.',
                 )
-              else if (!_searched)
-                const EmptyState(
-                  icon: Icons.search_rounded,
-                  title: 'Search routes',
-                  message: 'Enter a starting point and destination to begin.',
-                )
               else ...[
                 Text(
-                  'Search Results (${results.length})',
+                  _searched
+                      ? 'Search Results (${results.length})'
+                      : 'Available Routes (${results.length})',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/route_model.dart';
 import '../services/firebase_service.dart';
@@ -14,6 +15,9 @@ import 'profile_screen.dart';
 import 'search_screen.dart';
 import 'alarms_screen.dart';
 import 'notifications_screen.dart';
+import 'add_route_screen.dart';
+import 'login_screen.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +29,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final _firebaseService = FirebaseService();
+  final _authService = AuthService();
 
   Widget get _body {
     switch (_currentIndex) {
@@ -83,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 24),
         SectionHeading(
-          title: 'Popular Routes',
+          title: 'Active Routes',
           action: () => setState(() => _currentIndex = 1),
         ),
         const SizedBox(height: 4),
@@ -94,13 +99,11 @@ class _HomeScreenState extends State<HomeScreen> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return const Text('Popular routes are currently unavailable.');
+              return const Text('Active routes are currently unavailable.');
             }
-            final routes = snapshot.data!
-                .where((route) => route.isPopular)
-                .toList();
+            final routes = snapshot.data ?? const <RouteModel>[];
             if (routes.isEmpty) {
-              return const Text('No popular routes have been published yet.');
+              return const Text('No active routes have been published yet.');
             }
             return Column(
               children: routes.map((route) => RouteCard(route: route)).toList(),
@@ -162,6 +165,64 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          StreamBuilder<User?>(
+            stream: _authService.authStateChanges(),
+            builder: (context, authSnapshot) {
+              if (authSnapshot.data == null) {
+                return IconButton(
+                  tooltip: 'Sign In',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  ),
+                  icon: const Icon(Icons.login_rounded),
+                );
+              }
+              final user = authSnapshot.data!;
+              return StreamBuilder<AdminRoleStatus>(
+                stream: _authService.adminRoleState(user),
+                builder: (context, adminSnapshot) {
+                  if (adminSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const SizedBox(
+                      width: 48,
+                      child: Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  final status = adminSnapshot.data;
+                  if (adminSnapshot.hasError) {
+                    debugPrint(
+                      'Home Admin role UI error for UID=${user.uid}: '
+                      '${adminSnapshot.error}',
+                    );
+                    return const SizedBox.shrink();
+                  }
+                  if (status == null ||
+                      !status.exists ||
+                      status.role != 'admin') {
+                    return const SizedBox.shrink();
+                  }
+                  return IconButton(
+                    tooltip: 'Add Route',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddRouteScreen()),
+                    ),
+                    icon: const Icon(Icons.add_road_rounded),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             onPressed: () => Navigator.push(
               context,

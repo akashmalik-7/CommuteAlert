@@ -11,8 +11,10 @@ class SectionHeading extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title,
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+        ),
         if (action != null)
           TextButton(onPressed: action, child: const Text('See All')),
       ],
