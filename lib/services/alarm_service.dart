@@ -12,13 +12,27 @@ class AlarmService {
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final values = prefs.getStringList(_key) ?? [];
-    alarms
-      ..clear()
-      ..addAll(values.map((value) => AlarmModel.fromJson(jsonDecode(value))));
+    alarms.clear();
+    for (final value in values) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) {
+          alarms.add(AlarmModel.fromJson(decoded));
+        } else if (decoded is Map) {
+          alarms.add(AlarmModel.fromJson(Map<String, dynamic>.from(decoded)));
+        }
+      } catch (_) {
+        // Ignore corrupt local entries instead of aborting app startup.
+      }
+    }
     for (final alarm in alarms.where(
       (alarm) => alarm.type == AlarmType.timer && alarm.enabled,
     )) {
-      await _scheduleTimer(alarm);
+      try {
+        await _scheduleTimer(alarm);
+      } catch (_) {
+        // An unavailable notification scheduler must not prevent app startup.
+      }
     }
   }
 

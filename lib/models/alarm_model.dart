@@ -68,10 +68,13 @@ class AlarmModel {
   };
 
   factory AlarmModel.fromJson(Map<String, dynamic> json) => AlarmModel(
-    id: json['id'] as String,
-    type: AlarmType.values.byName(json['type'] as String),
-    routeId: json['routeId'] as String,
-    routeName: json['routeName'] as String,
+    id: json['id']?.toString() ?? '',
+    type: AlarmType.values.firstWhere(
+      (type) => type.name == json['type']?.toString(),
+      orElse: () => AlarmType.timer,
+    ),
+    routeId: json['routeId']?.toString() ?? '',
+    routeName: json['routeName']?.toString() ?? 'Unknown route',
     destination: json['destination'] as String? ?? '',
     enabled: json['enabled'] as bool? ?? true,
     hour: (json['hour'] as num?)?.toInt(),

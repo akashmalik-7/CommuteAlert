@@ -25,15 +25,6 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _searched = false;
 
   void _search() {
-    if (_fromController.text.trim().isEmpty ||
-        _toController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter both starting point and destination.'),
-        ),
-      );
-      return;
-    }
     setState(() => _searched = true);
   }
 

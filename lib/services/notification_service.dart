@@ -8,15 +8,24 @@ class NotificationService {
   static final instance = NotificationService._();
   final plugin = FlutterLocalNotificationsPlugin();
 
-  Future<void> initialize() async {
+  Future<void> initialize({
+    void Function(NotificationResponse response)? onNotificationTap,
+  }) async {
     tz.initializeTimeZones();
-    final local = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(local.identifier));
+    try {
+      final local = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(local.identifier));
+    } catch (_) {
+      tz.setLocalLocation(tz.UTC);
+    }
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(),
     );
-    await plugin.initialize(settings);
+    await plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: onNotificationTap,
+    );
     final android = plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin

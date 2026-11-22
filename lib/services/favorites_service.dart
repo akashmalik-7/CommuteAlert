@@ -14,9 +14,22 @@ class FavoritesService {
   static Future<void> initialize() async {
     _preferences = await SharedPreferences.getInstance();
     final stored = _preferences!.getStringList(_storageKey) ?? const [];
-    favorites.value = stored
-        .map((value) => _fromJson(jsonDecode(value) as Map<String, dynamic>))
-        .toList();
+    final restored = <RouteModel>[];
+    final routeIds = <String>{};
+    for (final value in stored) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) {
+          final route = _fromJson(Map<String, dynamic>.from(decoded));
+          if (route.routeId.isNotEmpty && routeIds.add(route.routeId)) {
+            restored.add(route);
+          }
+        }
+      } catch (_) {
+        // Ignore malformed favorite entries and restore valid routes.
+      }
+    }
+    favorites.value = restored;
   }
 
   static Future<void> toggle(RouteModel route) async {

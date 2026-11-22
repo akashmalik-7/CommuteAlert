@@ -37,33 +37,38 @@ class LocationService {
             accuracy: LocationAccuracy.high,
             distanceFilter: 25,
           ),
-        ).listen((position) async {
-          if (_notified) return;
-          final distance = Geolocator.distanceBetween(
-            position.latitude,
-            position.longitude,
-            alarm.latitude!,
-            alarm.longitude!,
-          );
-          if (distance <= (alarm.thresholdMeters ?? 250)) {
-            _notified = true;
-            await NotificationService.instance.plugin.show(
-              alarm.id.hashCode.abs() % 100000,
-              'Bus stop approaching',
-              'You are approaching ${alarm.stopName ?? 'your selected bus stop'}.',
-              const NotificationDetails(
-                android: AndroidNotificationDetails(
-                  'commute_alerts',
-                  'Commute alerts',
-                  channelDescription: 'Journey and bus stop reminders',
-                  importance: Importance.high,
-                  priority: Priority.high,
-                ),
-                iOS: DarwinNotificationDetails(),
-              ),
+        ).listen(
+          (position) async {
+            if (_notified) return;
+            final distance = Geolocator.distanceBetween(
+              position.latitude,
+              position.longitude,
+              alarm.latitude!,
+              alarm.longitude!,
             );
-          }
-        });
+            if (distance <= (alarm.thresholdMeters ?? 250)) {
+              _notified = true;
+              await NotificationService.instance.plugin.show(
+                alarm.id.hashCode.abs() % 100000,
+                'Bus stop approaching',
+                'You are approaching ${alarm.stopName ?? 'your selected bus stop'}.',
+                const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                    'commute_alerts',
+                    'Commute alerts',
+                    channelDescription: 'Journey and bus stop reminders',
+                    importance: Importance.high,
+                    priority: Priority.high,
+                  ),
+                  iOS: DarwinNotificationDetails(),
+                ),
+              );
+            }
+          },
+          onError: (_) {
+            _notified = false;
+          },
+        );
     return null;
   }
 
